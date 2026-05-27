@@ -83,7 +83,13 @@ const compressedImages = images.map(function(img) {
       }
       const text    = json.candidates[0].content.parts[0].text;
       const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      res.status(200).json(JSON.parse(cleaned));
+// JSON部分だけ抽出
+const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+if (!jsonMatch) {
+  res.status(500).json({ error: 'AIの返答をJSONに変換できませんでした: ' + cleaned.substring(0, 100) });
+  return;
+}
+res.status(200).json(JSON.parse(jsonMatch[0]));
       return;
     }
 
