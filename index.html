@@ -916,6 +916,14 @@ function openUrl(url) { window.open(url, '_blank'); }
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
+// 保存済みコードを自動入力
+(function() {
+  var saved = localStorage.getItem('no9_saved_code');
+  if (saved) {
+    document.getElementById('staffCode').value = saved;
+    document.getElementById('saveCode').checked = true;
+  }
+})();
 </script>
 </body>
 </html>
