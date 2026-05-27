@@ -202,7 +202,8 @@ ${storeSettings.cta}` : ''}
         return;
       }
       const result = json.candidates[0].content.parts[0].text.replace(/\*\*/g, '').replace(/###/g, '').trim();
-      res.status(200).json({ text: result });
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+res.status(200).end(JSON.stringify({ text: result }));
       return;
     }
 
