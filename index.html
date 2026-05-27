@@ -478,14 +478,21 @@ function renderStoresAdmin(stores) {
 function renderStaffsAdmin(staffs) {
   var area = document.getElementById('adminStaffsArea');
   if (!staffs.length) { area.innerHTML = '<p class="hint">スタッフデータがありません</p>'; return; }
-  var html = '<table class="admin-table"><thead><tr><th>名前</th><th>権限</th><th>状態</th><th>操作</th></tr></thead><tbody>';
+  var html = '<table class="admin-table"><thead><tr><th>名前</th><th>コード</th><th>権限</th><th>利用店舗</th><th>カテゴリ</th><th>状態</th><th>操作</th></tr></thead><tbody>';
   staffs.forEach(function(s) {
     var isActive = String(s.isActive) !== 'false' && String(s.isActive) !== 'FALSE';
     var btnStyle = isActive
       ? 'background:#fde8ee;color:#c0305a;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;'
       : 'background:#e8f5ee;color:#2a9060;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;';
-    html += '<tr><td>' + esc(s.staffName) + '</td><td>' + esc(s.role) + '</td><td>' + (isActive ? '✅' : '⛔') + '</td>'
-      + '<td><button style="' + btnStyle + '" onclick="toggleStaff(\'' + s.id + '\',' + !isActive + ')">' + (isActive ? '無効' : '有効') + '</button></td></tr>';
+    html += '<tr>'
+      + '<td>' + esc(s.staffName) + '</td>'
+      + '<td>' + esc(s.loginCode) + '</td>'
+      + '<td>' + esc(s.role) + '</td>'
+      + '<td style="font-size:11px;">' + esc(s.availableStores) + '</td>'
+      + '<td style="font-size:11px;">' + esc(s.availableCategories) + '</td>'
+      + '<td>' + (isActive ? '✅' : '⛔') + '</td>'
+      + '<td><button style="' + btnStyle + '" onclick="toggleStaff(\'' + s.id + '\',' + !isActive + ')">' + (isActive ? '無効' : '有効') + '</button></td>'
+      + '</tr>';
   });
   area.innerHTML = html + '</tbody></table>';
 }
