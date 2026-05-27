@@ -897,7 +897,9 @@ function generateAllPosts(callback) {
   gasRequest('generatePosts', { data: JSON.stringify(data) })
     .then(function(result) {
       if (loading) loading.classList.add('hidden');
-      parseAndDisplayPosts(result); goStep(5);
+      var text = typeof result === 'string' ? result : (result.text || '');
+if (callback) callback();
+parseAndDisplayPosts(text); goStep(5);
     })
     .catch(function(err) {
       if (loading) loading.classList.add('hidden');
@@ -906,7 +908,8 @@ function generateAllPosts(callback) {
 }
 
 function parseAndDisplayPosts(rawText) {
-  var igMatch     = rawText.match(/===INSTAGRAM===([\s\S]*?)(?====HOTPEPPER===|===GOOGLE===|$)/);
+  rawText = typeof rawText === 'string' ? rawText : (rawText.text || '');
+  var igMatch = rawText.match(/===INSTAGRAM===([\s\S]*?)(?====HOTPEPPER===|===GOOGLE===|$)/);
   var hpbMatch    = rawText.match(/===HOTPEPPER===([\s\S]*?)(?====INSTAGRAM===|===GOOGLE===|$)/);
   var googleMatch = rawText.match(/===GOOGLE===([\s\S]*?)(?====INSTAGRAM===|===HOTPEPPER===|$)/);
   var igEl     = document.getElementById('instagramResult');
