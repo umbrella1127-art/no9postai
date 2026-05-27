@@ -351,6 +351,33 @@
   </div>
 </div>
 
+<!-- スタッフ編集モーダル -->
+<div id="editStaffModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>✏️ スタッフ情報を編集</h2>
+      <button class="modal-close" onclick="closeEditStaffModal()">×</button>
+    </div>
+    <input type="hidden" id="editStaffId">
+    <label>スタッフ名</label>
+    <input type="text" id="editStaffName" placeholder="例：井上">
+    <label>ログインコード（数字4桁推奨）</label>
+    <input type="text" id="editStaffCode" placeholder="例：1234" inputmode="numeric">
+    <label>権限</label>
+    <select id="editStaffRole">
+      <option value="staff">スタッフ</option>
+      <option value="owner">オーナー</option>
+    </select>
+    <label>利用可能店舗（全店舗は「all」）</label>
+    <input type="text" id="editStaffStores" placeholder="例：umbrella または all">
+    <label>利用可能カテゴリ（全カテゴリは「all」）</label>
+    <input type="text" id="editStaffCategories" placeholder="例：ヘア,ヘッドスパ または all">
+    <button class="main-btn" onclick="saveEditStaff()" style="margin-top:20px;">保存する</button>
+    <button class="sub-btn" onclick="closeEditStaffModal()">キャンセル</button>
+    <p id="editStaffMessage" class="message"></p>
+  </div>
+</div>
+
 <script>
 /* =========================
    GAS API呼び出し（Vercel経由）
@@ -483,9 +510,11 @@ function renderStaffsAdmin(staffs) {
   var html = '<table class="admin-table"><thead><tr><th>名前</th><th>コード</th><th>権限</th><th>利用店舗</th><th>カテゴリ</th><th>状態</th><th>操作</th></tr></thead><tbody>';
   staffs.forEach(function(s) {
     var isActive = String(s.isActive) !== 'false' && String(s.isActive) !== 'FALSE';
-    var btnStyle = isActive
-      ? 'background:#fde8ee;color:#c0305a;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;'
-      : 'background:#e8f5ee;color:#2a9060;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;';
+    var toggleStyle = isActive
+      ? 'background:#fde8ee;color:#c0305a;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;margin-bottom:4px;width:100%;'
+      : 'background:#e8f5ee;color:#2a9060;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;margin-bottom:4px;width:100%;';
+    var editStyle = 'background:#f0e8f5;color:#7a4a9a;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;width:100%;';
+    // JSON.stringifyをonclick内で安全に使うため、data属性でIDを渡す
     html += '<tr>'
       + '<td>' + esc(s.staffName) + '</td>'
       + '<td>' + esc(s.loginCode) + '</td>'
@@ -493,10 +522,15 @@ function renderStaffsAdmin(staffs) {
       + '<td style="font-size:11px;">' + esc(s.availableStores) + '</td>'
       + '<td style="font-size:11px;">' + esc(s.availableCategories) + '</td>'
       + '<td>' + (isActive ? '✅' : '⛔') + '</td>'
-      + '<td><button style="' + btnStyle + '" onclick="toggleStaff(\'' + s.id + '\',' + !isActive + ')">' + (isActive ? '無効' : '有効') + '</button></td>'
+      + '<td style="min-width:70px;">'
+      + '<button style="' + toggleStyle + '" onclick="toggleStaff(\'' + esc(s.id) + '\',' + !isActive + ')">' + (isActive ? '無効' : '有効') + '</button>'
+      + '<button style="' + editStyle + '" onclick="openEditStaffModalById(\'' + esc(s.id) + '\')">編集</button>'
+      + '</td>'
       + '</tr>';
   });
   area.innerHTML = html + '</tbody></table>';
+  // スタッフデータをグローバルに保持
+  window._adminStaffList = staffs;
 }
 
 function addStaffFromAdmin() {
@@ -531,6 +565,48 @@ function reloadStaffsAdmin() {
   gasRequest('getAdminDashboardData', {})
     .then(function(data) { renderStaffsAdmin(data.staffs || []); })
     .catch(function(err) { alert('再読み込みエラー：' + err.message); });
+}
+
+/* スタッフ編集モーダル */
+function openEditStaffModalById(id) {
+  var staffs = window._adminStaffList || [];
+  var s = null;
+  for (var i = 0; i < staffs.length; i++) {
+    if (String(staffs[i].id) === String(id)) { s = staffs[i]; break; }
+  }
+  if (!s) { alert('スタッフが見つかりません'); return; }
+  document.getElementById('editStaffId').value         = s.id;
+  document.getElementById('editStaffName').value       = s.staffName;
+  document.getElementById('editStaffCode').value       = String(s.loginCode).replace(/^'/, '');
+  document.getElementById('editStaffRole').value       = s.role;
+  document.getElementById('editStaffStores').value     = s.availableStores;
+  document.getElementById('editStaffCategories').value = s.availableCategories;
+  document.getElementById('editStaffMessage').textContent = '';
+  document.getElementById('editStaffModal').classList.remove('hidden');
+}
+
+function closeEditStaffModal() {
+  document.getElementById('editStaffModal').classList.add('hidden');
+}
+
+function saveEditStaff() {
+  var msg = document.getElementById('editStaffMessage');
+  msg.textContent = ''; msg.className = 'message';
+  var data = {
+    id:                  document.getElementById('editStaffId').value,
+    staffName:           document.getElementById('editStaffName').value.trim(),
+    loginCode:           document.getElementById('editStaffCode').value.trim(),
+    role:                document.getElementById('editStaffRole').value,
+    availableStores:     document.getElementById('editStaffStores').value.trim(),
+    availableCategories: document.getElementById('editStaffCategories').value.trim()
+  };
+  if (!data.staffName || !data.loginCode) { msg.textContent = '名前とコードは必須です'; return; }
+  gasRequest('updateStaff', { data: JSON.stringify(data) })
+    .then(function(res) {
+      msg.textContent = res.message; msg.className = 'message success';
+      setTimeout(function() { closeEditStaffModal(); reloadStaffsAdmin(); }, 800);
+    })
+    .catch(function(err) { msg.textContent = err.message || '更新エラー'; });
 }
 
 function setupAdminStoreSettingsSelect(stores) {
@@ -898,8 +974,8 @@ function generateAllPosts(callback) {
     .then(function(result) {
       if (loading) loading.classList.add('hidden');
       var text = typeof result === 'string' ? result : (result.text || '');
-if (callback) callback();
-parseAndDisplayPosts(text); goStep(5);
+      if (callback) callback();
+      parseAndDisplayPosts(text); goStep(5);
     })
     .catch(function(err) {
       if (loading) loading.classList.add('hidden');
@@ -909,7 +985,7 @@ parseAndDisplayPosts(text); goStep(5);
 
 function parseAndDisplayPosts(rawText) {
   rawText = typeof rawText === 'string' ? rawText : (rawText.text || '');
-  var igMatch = rawText.match(/===INSTAGRAM===([\s\S]*?)(?====HOTPEPPER===|===GOOGLE===|$)/);
+  var igMatch     = rawText.match(/===INSTAGRAM===([\s\S]*?)(?====HOTPEPPER===|===GOOGLE===|$)/);
   var hpbMatch    = rawText.match(/===HOTPEPPER===([\s\S]*?)(?====INSTAGRAM===|===GOOGLE===|$)/);
   var googleMatch = rawText.match(/===GOOGLE===([\s\S]*?)(?====INSTAGRAM===|===HOTPEPPER===|$)/);
   var igEl     = document.getElementById('instagramResult');
