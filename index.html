@@ -897,7 +897,8 @@ function generateAllPosts() {
   gasRequest('generatePosts', { data: JSON.stringify(data) })
     .then(function(result) {
       if (loading) loading.classList.add('hidden');
-      parseAndDisplayPosts(result); goStep(5);
+      var text = typeof result === 'string' ? result : (result.text || '');
+parseAndDisplayPosts(text); goStep(5);
     })
     .catch(function(err) {
       if (loading) loading.classList.add('hidden');
