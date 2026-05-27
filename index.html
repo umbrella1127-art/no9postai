@@ -874,7 +874,7 @@ function getChipTexts(areaId) {
 }
 
 /* 投稿生成 */
-function generateAllPosts() {
+function generateAllPosts(callback) {
   if (imageState.selectedImages.length === 0) { alert('画像が選択されていません。STEP2に戻って画像を選んでください。'); return; }
   var features = getChipTexts('featuresArea');
   var hashtags = getChipTexts('hashtagsArea');
@@ -897,13 +897,7 @@ function generateAllPosts() {
   gasRequest('generatePosts', { data: JSON.stringify(data) })
     .then(function(result) {
       if (loading) loading.classList.add('hidden');
-      var text = typeof result === 'string' ? result : (result.text || JSON.stringify(result));
-if (text && text.indexOf('===INSTAGRAM===') !== -1) {
-  parseAndDisplayPosts(text); goStep(5);
-} else {
-  alert('生成エラー：投稿文の形式が正しくありません。もう一度試してください。');
-  if (loading) loading.classList.add('hidden');
-};
+      parseAndDisplayPosts(result); goStep(5);
     })
     .catch(function(err) {
       if (loading) loading.classList.add('hidden');
@@ -929,7 +923,11 @@ function generateAnotherPattern() {
     goStep(2);
     return;
   }
-  generateAllPosts();
+  var btn = document.querySelector('[onclick="generateAnotherPattern()"]');
+  if (btn) { btn.textContent = '⏳ 再生成中...'; btn.disabled = true; }
+  generateAllPosts(function() {
+    if (btn) { btn.textContent = '🔄 別パターンを生成'; btn.disabled = false; }
+  });
 }
 
 function resetAndGoTop() {
