@@ -23,9 +23,10 @@ export default async function handler(req, res) {
           resolve(httpsGet(response.headers.location, count + 1));
           return;
         }
-        let data = '';
-        response.on('data', function(chunk) { data += chunk; });
-        response.on('end', function() { resolve(data); });
+        // ★修正：バッファで受信してからUTF-8デコード
+        const chunks = [];
+        response.on('data', function(chunk) { chunks.push(chunk); });
+        response.on('end', function() { resolve(Buffer.concat(chunks).toString('utf8')); });
       }).on('error', reject);
     });
   }
@@ -44,9 +45,10 @@ export default async function handler(req, res) {
         }
       };
       const req2 = https.default.request(options, function(response) {
-        let data = '';
-        response.on('data', function(chunk) { data += chunk; });
-        response.on('end', function() { resolve(data); });
+        // ★修正：バッファで受信してからUTF-8デコード
+        const chunks = [];
+        response.on('data', function(chunk) { chunks.push(chunk); });
+        response.on('end', function() { resolve(Buffer.concat(chunks).toString('utf8')); });
       });
       req2.on('error', reject);
       req2.write(bodyStr);
@@ -62,34 +64,32 @@ export default async function handler(req, res) {
     if (action === 'analyzeImages') {
       const data   = typeof params.data === 'string' ? JSON.parse(params.data) : params.data;
       const images = data.images || [];
-      // 画像を圧縮（base64の先頭500000文字に制限）
-const compressedImages = images.map(function(img) {
-  return {
-    mimeType: img.mimeType,
-    base64: img.base64.substring(0, 500000)
-  };
-});
+      const compressedImages = images.map(function(img) {
+        return {
+          mimeType: img.mimeType,
+          base64: img.base64.substring(0, 500000)
+        };
+      });
       const prompt = 'あなたは美容業界専門AIです。画像を解析し、以下をJSON形式で返してください。{"reaction":"","features":[],"hashtags":[],"recommendedTastes":[]}ルール：reaction：スタッフが嬉しくなる自然な褒めコメント。features：画像特徴候補。hashtags：おすすめハッシュタグ。recommendedTastes：おすすめ投稿テイスト。投稿テイスト候補：上品・共感・かわいい・強セールス・トレンド。JSONのみ返してください。';
       const parts  = [{ text: prompt }];
       images.forEach(function(img) {
         parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
       });
-      const payload  = { contents: [{ role: 'user', parts: parts }], generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } };
+      const payload    = { contents: [{ role: 'user', parts: parts }], generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } };
       const resultText = await httpsPostJson(GEMINI_URL, payload);
-      const json     = JSON.parse(resultText);
+      const json       = JSON.parse(resultText);
       if (!json.candidates || !json.candidates.length) {
         res.status(500).json({ error: 'Gemini APIエラー: ' + resultText });
         return;
       }
       const text    = json.candidates[0].content.parts[0].text;
       const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
-// JSON部分だけ抽出
-const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-if (!jsonMatch) {
-  res.status(500).json({ error: 'AIの返答をJSONに変換できませんでした: ' + cleaned.substring(0, 100) });
-  return;
-}
-res.status(200).json(JSON.parse(jsonMatch[0]));
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        res.status(500).json({ error: 'AIの返答をJSONに変換できませんでした: ' + cleaned.substring(0, 100) });
+        return;
+      }
+      res.status(200).json(JSON.parse(jsonMatch[0]));
       return;
     }
 
@@ -203,10 +203,10 @@ ${storeSettings.cta}` : ''}
       }
       const result = json.candidates[0].content.parts[0].text.replace(/\*\*/g, '').replace(/###/g, '').trim();
       const responseBody = Buffer.from(JSON.stringify({ text: result }), 'utf8');
-res.setHeader('Content-Type', 'application/json; charset=utf-8');
-res.setHeader('Content-Length', responseBody.length);
-res.status(200).end(responseBody);
-return;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Length', responseBody.length);
+      res.status(200).end(responseBody);
+      return;
     }
 
     // その他はGASへGETで転送
