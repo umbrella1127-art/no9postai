@@ -8,6 +8,12 @@ export default async function handler(req, res) {
     return;
   }
 
+  // POSTの場合はbodyからparamsを取得
+  const params = req.method === 'POST'
+    ? req.body || {}
+    : req.query || {};
+  }
+
   const https = await import('https');
 
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbz2POEJjfOKuT57CHInwN8ZTlyiqbB4JmOt83B4qx7DV_a2CdoQQJQiSKdoOE8atceT/exec';
