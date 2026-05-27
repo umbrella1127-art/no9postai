@@ -347,46 +347,55 @@
 </div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbz2POEJjfOKuT57CHInwN8ZTlyiqbB4JmOt83B4qx7DV_a2CdoQQJQiSKdoOE8atceT/exec';
-
 /* =========================
-   JSONPでGASを呼ぶ（CORS回避）
+   GAS API呼び出し（Vercel経由）
 ========================= */
-let _jsonpCallbackCounter = 0;
-
 function gasRequest(action, params) {
-  return new Promise(function(resolve, reject) {
-    const query = Object.assign({ action: action }, params);
-    const queryStr = Object.keys(query).map(function(k) {
-      const v = typeof query[k] === 'object' ? JSON.stringify(query[k]) : String(query[k]);
+  var HEAVY_ACTIONS = ['analyzeImages', 'generatePosts'];
+
+  if (HEAVY_ACTIONS.indexOf(action) !== -1) {
+    var bodyObj = Object.assign({ action: action }, params);
+    return fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyObj)
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data && data.error) { return Promise.reject(new Error(data.error)); }
+      return data;
+    });
+  } else {
+    var query = Object.assign({ action: action }, params);
+    var queryStr = Object.keys(query).map(function(k) {
+      var v = typeof query[k] === 'object' ? JSON.stringify(query[k]) : String(query[k]);
       return encodeURIComponent(k) + '=' + encodeURIComponent(v);
     }).join('&');
 
-    fetch('/api/proxy?' + queryStr)
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        if (data && data.error) { reject(new Error(data.error)); }
-        else { resolve(data); }
-      })
-      .catch(function(err) { reject(err); });
-  });
+    return fetch('/api/proxy?' + queryStr)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data && data.error) { return Promise.reject(new Error(data.error)); }
+      return data;
+    });
+  }
 }
 
 /* =========================
    グローバル状態
 ========================= */
-let currentStaff       = null;
-let currentStaffCode   = '';
-let currentStep        = 1;
-let currentAiStaffList = [];
-const imageState = { selectedImages: [], analysisResult: null };
-const postState  = { instagram: '', hotpepper: '', google: '' };
+var currentStaff       = null;
+var currentStaffCode   = '';
+var currentStep        = 1;
+var currentAiStaffList = [];
+var imageState = { selectedImages: [], analysisResult: null };
+var postState  = { instagram: '', hotpepper: '', google: '' };
 
-const PERSONA_AVATARS = {
+var PERSONA_AVATARS = {
   '標準':'🤖','上品':'🌸','親しみ':'😊','高級感':'💎','共感':'💝',
   '強セールス':'💪','かわいい':'🎀','トレンド':'🔥','韓国系':'✨','専門家':'🔬','ナチュラル':'🌿'
 };
-const PERSONA_DESC = {
+var PERSONA_DESC = {
   '標準':'バランス型・どんな投稿にも対応','上品':'落ち着き・余白・高級感を重視',
   '親しみ':'やさしく距離感の近い文章','高級感':'上質さと特別感を大切に',
   '共感':'悩みに寄り添い自分ごと化','強セールス':'行動を促す訴求力重視',
@@ -396,8 +405,8 @@ const PERSONA_DESC = {
 
 /* ログイン */
 function handleStaffLogin() {
-  const code    = document.getElementById('staffCode').value.trim();
-  const message = document.getElementById('loginMessage');
+  var code    = document.getElementById('staffCode').value.trim();
+  var message = document.getElementById('loginMessage');
   message.textContent = '';
   if (!code) { message.textContent = 'スタッフコードを入力してください'; return; }
 
@@ -442,17 +451,17 @@ function closeAdminDashboard() { document.getElementById('adminModal').classList
 function switchAdminTab(tab) {
   document.querySelectorAll('.admin-tab').forEach(function(b) { b.classList.remove('active'); });
   document.querySelectorAll('.admin-tab-content').forEach(function(e) { e.classList.remove('active'); });
-  const map = { stores:'adminTabStores', staffs:'adminTabStaffs', settings:'adminTabSettings' };
+  var map = { stores:'adminTabStores', staffs:'adminTabStaffs', settings:'adminTabSettings' };
   document.getElementById(map[tab]).classList.add('active');
-  const btns = document.querySelectorAll('.admin-tab');
-  const idx  = { stores:0, staffs:1, settings:2 };
+  var btns = document.querySelectorAll('.admin-tab');
+  var idx  = { stores:0, staffs:1, settings:2 };
   if (btns[idx[tab]]) btns[idx[tab]].classList.add('active');
 }
 
 function renderStoresAdmin(stores) {
-  const area = document.getElementById('adminStoresArea');
+  var area = document.getElementById('adminStoresArea');
   if (!stores.length) { area.innerHTML = '<p class="hint">店舗データがありません</p>'; return; }
-  let html = '<table class="admin-table"><thead><tr><th>店舗名</th><th>業種</th><th>状態</th></tr></thead><tbody>';
+  var html = '<table class="admin-table"><thead><tr><th>店舗名</th><th>業種</th><th>状態</th></tr></thead><tbody>';
   stores.forEach(function(s) {
     html += '<tr><td>' + esc(s.storeName) + '</td><td>' + esc(s.businessType) + '</td><td>' + (s.isActive ? '✅' : '⛔') + '</td></tr>';
   });
@@ -460,12 +469,12 @@ function renderStoresAdmin(stores) {
 }
 
 function renderStaffsAdmin(staffs) {
-  const area = document.getElementById('adminStaffsArea');
+  var area = document.getElementById('adminStaffsArea');
   if (!staffs.length) { area.innerHTML = '<p class="hint">スタッフデータがありません</p>'; return; }
-  let html = '<table class="admin-table"><thead><tr><th>名前</th><th>権限</th><th>状態</th><th>操作</th></tr></thead><tbody>';
+  var html = '<table class="admin-table"><thead><tr><th>名前</th><th>権限</th><th>状態</th><th>操作</th></tr></thead><tbody>';
   staffs.forEach(function(s) {
-    const isActive = String(s.isActive) !== 'false' && String(s.isActive) !== 'FALSE';
-    const btnStyle = isActive
+    var isActive = String(s.isActive) !== 'false' && String(s.isActive) !== 'FALSE';
+    var btnStyle = isActive
       ? 'background:#fde8ee;color:#c0305a;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;'
       : 'background:#e8f5ee;color:#2a9060;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;';
     html += '<tr><td>' + esc(s.staffName) + '</td><td>' + esc(s.role) + '</td><td>' + (isActive ? '✅' : '⛔') + '</td>'
@@ -475,13 +484,13 @@ function renderStaffsAdmin(staffs) {
 }
 
 function addStaffFromAdmin() {
-  const msg = document.getElementById('addStaffMessage');
+  var msg = document.getElementById('addStaffMessage');
   msg.textContent = ''; msg.className = 'message';
-  const staffName           = document.getElementById('newStaffName').value.trim();
-  const loginCode           = document.getElementById('newStaffCode').value.trim();
-  const role                = document.getElementById('newStaffRole').value;
-  const availableStores     = document.getElementById('newStaffStores').value.trim();
-  const availableCategories = document.getElementById('newStaffCategories').value.trim();
+  var staffName           = document.getElementById('newStaffName').value.trim();
+  var loginCode           = document.getElementById('newStaffCode').value.trim();
+  var role                = document.getElementById('newStaffRole').value;
+  var availableStores     = document.getElementById('newStaffStores').value.trim();
+  var availableCategories = document.getElementById('newStaffCategories').value.trim();
   if (!staffName || !loginCode) { msg.textContent = 'スタッフ名とログインコードを入力してください'; return; }
   gasRequest('addStaff', { data: JSON.stringify({ staffName: staffName, loginCode: loginCode, role: role, availableStores: availableStores, availableCategories: availableCategories }) })
     .then(function(res) {
@@ -509,29 +518,29 @@ function reloadStaffsAdmin() {
 }
 
 function setupAdminStoreSettingsSelect(stores) {
-  const select = document.getElementById('adminStoreSettingsSelect');
+  var select = document.getElementById('adminStoreSettingsSelect');
   if (!select) return;
   select.innerHTML = '<option value="">店舗を選んでください</option>';
   stores.forEach(function(s) {
-    const opt = document.createElement('option');
+    var opt = document.createElement('option');
     opt.value = opt.textContent = String(s.storeName || '');
     select.appendChild(opt);
   });
-  const form = document.getElementById('adminStoreSettingsForm');
+  var form = document.getElementById('adminStoreSettingsForm');
   if (form) form.classList.add('hidden');
 }
 
 function loadStoreSettingsForAdmin() {
-  const select   = document.getElementById('adminStoreSettingsSelect');
-  const storeKey = select ? select.value : '';
-  const form     = document.getElementById('adminStoreSettingsForm');
+  var select   = document.getElementById('adminStoreSettingsSelect');
+  var storeKey = select ? select.value : '';
+  var form     = document.getElementById('adminStoreSettingsForm');
   if (!storeKey) { if (form) form.classList.add('hidden'); return; }
   gasRequest('getStoreSettings', { storeKey: storeKey })
     .then(function(settings) {
-      const ids  = ['adminBrandTone','adminTarget','adminStrength','adminNgWords','adminInstagramTone','adminHotpepperTone','adminGbpTone','adminCta'];
-      const keys = ['brandTone','target','strength','ngWords','instagramTone','hotpepperTone','gbpTone','cta'];
+      var ids  = ['adminBrandTone','adminTarget','adminStrength','adminNgWords','adminInstagramTone','adminHotpepperTone','adminGbpTone','adminCta'];
+      var keys = ['brandTone','target','strength','ngWords','instagramTone','hotpepperTone','gbpTone','cta'];
       ids.forEach(function(id, i) { document.getElementById(id).value = (settings && settings[keys[i]]) ? settings[keys[i]] : ''; });
-      const msg = document.getElementById('adminStoreSettingsMessage');
+      var msg = document.getElementById('adminStoreSettingsMessage');
       if (msg) msg.textContent = '';
       if (form) form.classList.remove('hidden');
     })
@@ -539,11 +548,11 @@ function loadStoreSettingsForAdmin() {
 }
 
 function saveStoreSettingsFromAdmin() {
-  const select   = document.getElementById('adminStoreSettingsSelect');
-  const storeKey = select ? select.value : '';
-  const msg      = document.getElementById('adminStoreSettingsMessage');
+  var select   = document.getElementById('adminStoreSettingsSelect');
+  var storeKey = select ? select.value : '';
+  var msg      = document.getElementById('adminStoreSettingsMessage');
   if (!storeKey) { if (msg) msg.textContent = '店舗を選んでください'; return; }
-  const data = {
+  var data = {
     storeKey: storeKey,
     brandTone: document.getElementById('adminBrandTone').value,
     target: document.getElementById('adminTarget').value,
@@ -563,10 +572,10 @@ function saveStoreSettingsFromAdmin() {
 function goStep(step) {
   currentStep = step;
   document.querySelectorAll('.step-page').forEach(function(el) { el.classList.add('hidden'); });
-  const target = document.getElementById('step' + step);
+  var target = document.getElementById('step' + step);
   if (target) target.classList.remove('hidden');
-  for (let i = 1; i <= 5; i++) {
-    const dot = document.getElementById('dot' + i);
+  for (var i = 1; i <= 5; i++) {
+    var dot = document.getElementById('dot' + i);
     if (!dot) continue;
     dot.className = 'step-dot';
     if (i < step)   dot.classList.add('done');
@@ -577,33 +586,33 @@ function goStep(step) {
 }
 
 /* 店舗・カテゴリ */
-const ALL_STORES     = ['umbrella','メンズグルーミングスパumbrella','kanau','キャンアイドレッシー前橋小相木店'];
-const ALL_CATEGORIES = ['ヘア','ヘッドスパ','メンズ','痩身','ハーブピーリング','ネイル','アイ','キャンペーン','お知らせ'];
+var ALL_STORES     = ['umbrella','メンズグルーミングスパumbrella','kanau','キャンアイドレッシー前橋小相木店'];
+var ALL_CATEGORIES = ['ヘア','ヘッドスパ','メンズ','痩身','ハーブピーリング','ネイル','アイ','キャンペーン','お知らせ'];
 
 function setupStoreAndCategory() {
-  const ss = document.getElementById('store');
-  const cs = document.getElementById('category');
+  var ss = document.getElementById('store');
+  var cs = document.getElementById('category');
   if (!ss || !cs) return;
   ss.innerHTML = ''; cs.innerHTML = '';
-  const stores     = (currentStaff.stores && currentStaff.stores.includes('all')) ? ALL_STORES : (currentStaff.stores || []);
-  const categories = (currentStaff.categories && currentStaff.categories.includes('all')) ? ALL_CATEGORIES : (currentStaff.categories || []);
-  stores.forEach(function(s)     { const o = document.createElement('option'); o.value = o.textContent = s; ss.appendChild(o); });
-  categories.forEach(function(c) { const o = document.createElement('option'); o.value = o.textContent = c; cs.appendChild(o); });
+  var stores     = (currentStaff.stores && currentStaff.stores.indexOf('all') !== -1) ? ALL_STORES : (currentStaff.stores || []);
+  var categories = (currentStaff.categories && currentStaff.categories.indexOf('all') !== -1) ? ALL_CATEGORIES : (currentStaff.categories || []);
+  stores.forEach(function(s)     { var o = document.createElement('option'); o.value = o.textContent = s; ss.appendChild(o); });
+  categories.forEach(function(c) { var o = document.createElement('option'); o.value = o.textContent = c; cs.appendChild(o); });
 }
 
 /* AIスタッフ */
 function loadAiStaffOptions(storeOverride) {
-  const storeEl = document.getElementById('store');
-  const store   = storeOverride || (storeEl ? storeEl.value : '');
+  var storeEl = document.getElementById('store');
+  var store   = storeOverride || (storeEl ? storeEl.value : '');
   if (!store) return;
   gasRequest('getAiStaffList', { staffCode: currentStaffCode, store: store })
     .then(function(list) {
       currentAiStaffList = list || [];
-      const select = document.getElementById('aiStaffSelect');
+      var select = document.getElementById('aiStaffSelect');
       if (!select) return;
       select.innerHTML = '';
       currentAiStaffList.forEach(function(ai) {
-        const o = document.createElement('option'); o.value = ai.id; o.textContent = ai.aiName; select.appendChild(o);
+        var o = document.createElement('option'); o.value = ai.id; o.textContent = ai.aiName; select.appendChild(o);
       });
       updateAiStaffCard(); updateAiStaffButtons();
     })
@@ -613,10 +622,10 @@ function loadAiStaffOptions(storeOverride) {
 function onAiStaffChanged() { updateAiStaffCard(); updateAiStaffButtons(); }
 
 function updateAiStaffCard() {
-  const ai = getSelectedAiStaff();
-  const avatar  = document.getElementById('aiAvatar');
-  const name    = document.getElementById('aiStaffCardName');
-  const persona = document.getElementById('aiStaffCardPersona');
+  var ai = getSelectedAiStaff();
+  var avatar  = document.getElementById('aiAvatar');
+  var name    = document.getElementById('aiStaffCardName');
+  var persona = document.getElementById('aiStaffCardPersona');
   if (!ai || ai.id === 'standard') {
     if (avatar)  avatar.textContent  = '🤖';
     if (name)    name.textContent    = '標準AI';
@@ -629,25 +638,25 @@ function updateAiStaffCard() {
 }
 
 function updateAiStaffButtons() {
-  const ai    = getSelectedAiStaff();
-  const isStd = !ai || ai.id === 'standard';
-  const eb = document.getElementById('editAiBtn');
-  const db = document.getElementById('deleteAiBtn');
+  var ai    = getSelectedAiStaff();
+  var isStd = !ai || ai.id === 'standard';
+  var eb = document.getElementById('editAiBtn');
+  var db = document.getElementById('deleteAiBtn');
   if (eb) { eb.disabled = isStd; isStd ? eb.classList.add('disabled') : eb.classList.remove('disabled'); }
   if (db) { db.disabled = isStd; isStd ? db.classList.add('disabled') : db.classList.remove('disabled'); }
 }
 
 function getSelectedAiStaff() {
-  const select = document.getElementById('aiStaffSelect');
+  var select = document.getElementById('aiStaffSelect');
   if (!select) return null;
-  return currentAiStaffList.find(function(ai) { return ai.id === select.value; }) || null;
+  return currentAiStaffList.filter(function(ai) { return ai.id === select.value; })[0] || null;
 }
 
 function openAiStaffModal(mode) {
   clearAiStaffModal();
-  const title = document.getElementById('aiStaffModalTitle');
+  var title = document.getElementById('aiStaffModalTitle');
   if (mode === 'edit') {
-    const ai = getSelectedAiStaff();
+    var ai = getSelectedAiStaff();
     if (!ai || ai.id === 'standard') { alert('標準AIは編集できません'); return; }
     title.textContent = 'AIスタッフを編集';
     document.getElementById('aiStaffIdInput').value       = ai.id;
@@ -673,11 +682,11 @@ function clearAiStaffModal() {
 }
 
 function saveAiStaffFromModal() {
-  const message = document.getElementById('aiStaffModalMessage');
+  var message = document.getElementById('aiStaffModalMessage');
   message.textContent = ''; message.className = 'message';
-  const aiName = document.getElementById('aiNameInput').value.trim();
+  var aiName = document.getElementById('aiNameInput').value.trim();
   if (!aiName) { message.textContent = 'AIスタッフ名を入力してください'; return; }
-  const data = {
+  var data = {
     id: document.getElementById('aiStaffIdInput').value,
     staffCode: currentStaffCode,
     store: document.getElementById('store').value,
@@ -697,7 +706,7 @@ function saveAiStaffFromModal() {
 }
 
 function deleteSelectedAiStaff() {
-  const ai = getSelectedAiStaff();
+  var ai = getSelectedAiStaff();
   if (!ai || ai.id === 'standard') { alert('標準AIは削除できません'); return; }
   if (!confirm('AIスタッフ「' + ai.aiName + '」を削除しますか？')) return;
   gasRequest('deleteAiStaff', { id: ai.id })
@@ -707,26 +716,26 @@ function deleteSelectedAiStaff() {
 
 /* 画像アップロード */
 function setupImageUpload() {
-  const input = document.getElementById('imageInput');
+  var input = document.getElementById('imageInput');
   if (!input) return;
   input.onchange = function(e) { handleImages(e.target.files); };
 }
 
 function handleImages(files) {
   if (!files || files.length === 0) return;
-  const fileArray = Array.prototype.slice.call(files, 0, 3);
+  var fileArray = Array.prototype.slice.call(files, 0, 3);
   imageState.selectedImages = []; imageState.analysisResult = null;
-  const previewArea = document.getElementById('previewArea');
+  var previewArea = document.getElementById('previewArea');
   if (previewArea) previewArea.innerHTML = '';
   resetAnalysisUI();
-  let loaded = 0;
+  var loaded = 0;
   fileArray.forEach(function(file, index) {
-    const reader = new FileReader();
+    var reader = new FileReader();
     reader.onload = function(e) {
-      const dataUrl  = e.target.result;
-      const parts    = dataUrl.split(',');
-      const mimeType = parts[0].replace('data:', '').replace(';base64', '');
-      const base64   = parts[1];
+      var dataUrl  = e.target.result;
+      var parts    = dataUrl.split(',');
+      var mimeType = parts[0].replace('data:', '').replace(';base64', '');
+      var base64   = parts[1];
       imageState.selectedImages[index] = { file: file, mimeType: mimeType, base64: base64, dataUrl: dataUrl };
       addImagePreview(dataUrl, index); loaded++;
       if (loaded === fileArray.length) imageState.selectedImages = imageState.selectedImages.filter(Boolean);
@@ -737,11 +746,11 @@ function handleImages(files) {
 }
 
 function addImagePreview(dataUrl, index) {
-  const previewArea = document.getElementById('previewArea');
+  var previewArea = document.getElementById('previewArea');
   if (!previewArea) return;
-  const item = document.createElement('div'); item.className = 'preview-item';
-  const img  = document.createElement('img');  img.src = dataUrl; img.alt = '画像' + (index + 1);
-  const btn  = document.createElement('button'); btn.textContent = '×';
+  var item = document.createElement('div'); item.className = 'preview-item';
+  var img  = document.createElement('img');  img.src = dataUrl; img.alt = '画像' + (index + 1);
+  var btn  = document.createElement('button'); btn.textContent = '×';
   btn.style.cssText = 'position:absolute;top:5px;right:5px;border:none;background:rgba(0,0,0,0.55);color:#fff;border-radius:50%;width:26px;height:26px;font-size:14px;cursor:pointer;line-height:1;';
   btn.onclick = function() { removeImage(index); };
   item.appendChild(img); item.appendChild(btn); previewArea.appendChild(item);
@@ -749,7 +758,7 @@ function addImagePreview(dataUrl, index) {
 
 function removeImage(index) {
   imageState.selectedImages.splice(index, 1); imageState.analysisResult = null;
-  const previewArea = document.getElementById('previewArea');
+  var previewArea = document.getElementById('previewArea');
   if (previewArea) previewArea.innerHTML = '';
   imageState.selectedImages.forEach(function(img, i) { addImagePreview(img.dataUrl, i); });
   resetAnalysisUI();
@@ -757,109 +766,86 @@ function removeImage(index) {
 
 /* AI解析 */
 function resetAnalysisUI() {
-  const rb = document.getElementById('reactionBox');
+  var rb = document.getElementById('reactionBox');
   if (rb) rb.textContent = '画像を選択すると、AIのコメントが表示されます。';
-  const fa = document.getElementById('featuresArea');  if (fa) fa.innerHTML = '';
-  const ha = document.getElementById('hashtagsArea');  if (ha) ha.innerHTML = '';
+  var fa = document.getElementById('featuresArea');  if (fa) fa.innerHTML = '';
+  var ha = document.getElementById('hashtagsArea');  if (ha) ha.innerHTML = '';
 }
 
 function runAnalysis() {
   if (imageState.selectedImages.length === 0) { alert('画像を選択してください'); return; }
-  const loading = document.getElementById('analysisLoading');
-  const rb      = document.getElementById('reactionBox');
+  var loading = document.getElementById('analysisLoading');
+  var rb      = document.getElementById('reactionBox');
   if (loading) loading.classList.remove('hidden');
   if (rb) rb.textContent = '';
-  const images = imageState.selectedImages.map(function(img) { return { mimeType: img.mimeType, base64: img.base64 }; });
-  function gasRequest(action, params) {
-  return new Promise(function(resolve, reject) {
-    const HEAVY_ACTIONS = ['analyzeImages', 'generatePosts'];
-
-    if (HEAVY_ACTIONS.indexOf(action) !== -1) {
-      const bodyObj = Object.assign({ action: action }, params);
-      fetch('/api/proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyObj)
-      })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          if (data && data.error) { reject(new Error(data.error)); }
-          else { resolve(data); }
-        })
-        .catch(function(err) { reject(err); });
-    } else {
-      const query = Object.assign({ action: action }, params);
-      const queryStr = Object.keys(query).map(function(k) {
-        const v = typeof query[k] === 'object' ? JSON.stringify(query[k]) : String(query[k]);
-        return encodeURIComponent(k) + '=' + encodeURIComponent(v);
-      }).join('&');
-
-      fetch('/api/proxy?' + queryStr)
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          if (data && data.error) { reject(new Error(data.error)); }
-          else { resolve(data); }
-        })
-        .catch(function(err) { reject(err); });
-    }
-  });
+  var images = imageState.selectedImages.map(function(img) { return { mimeType: img.mimeType, base64: img.base64 }; });
+  gasRequest('analyzeImages', { data: JSON.stringify({ images: images }) })
+    .then(function(result) {
+      if (loading) loading.classList.add('hidden');
+      imageState.analysisResult = result;
+      renderAnalysisResult(result);
+    })
+    .catch(function(err) {
+      if (loading) loading.classList.add('hidden');
+      if (rb) rb.textContent = '解析エラー：' + (err.message || '不明なエラー');
+    });
 }
 
 function renderAnalysisResult(result) {
-  const rb = document.getElementById('reactionBox');
+  var rb = document.getElementById('reactionBox');
   if (rb) rb.textContent = result.reaction || '解析完了しました。';
-  const fa = document.getElementById('featuresArea');
+  var fa = document.getElementById('featuresArea');
   if (fa) { fa.innerHTML = ''; (result.features || []).forEach(function(f) { fa.appendChild(createChip(f)); }); }
-  const ha = document.getElementById('hashtagsArea');
+  var ha = document.getElementById('hashtagsArea');
   if (ha) { ha.innerHTML = ''; (result.hashtags || []).forEach(function(t) { ha.appendChild(createChip(t)); }); }
   if (result.recommendedTastes && result.recommendedTastes.length > 0) {
-    const ts = document.getElementById('taste');
-    if (ts) { const rec = result.recommendedTastes[0]; for (let i = 0; i < ts.options.length; i++) { if (ts.options[i].value === rec) { ts.selectedIndex = i; break; } } }
+    var ts = document.getElementById('taste');
+    if (ts) { var rec = result.recommendedTastes[0]; for (var i = 0; i < ts.options.length; i++) { if (ts.options[i].value === rec) { ts.selectedIndex = i; break; } } }
   }
 }
 
 function createChip(text) {
-  const chip = document.createElement('div'); chip.className = 'chip';
-  const label = document.createElement('span'); label.textContent = text;
-  const btn   = document.createElement('button'); btn.textContent = '×';
+  var chip = document.createElement('div'); chip.className = 'chip';
+  var label = document.createElement('span'); label.textContent = text;
+  var btn   = document.createElement('button'); btn.textContent = '×';
   btn.onclick = function() { chip.parentNode.removeChild(chip); };
   chip.appendChild(label); chip.appendChild(btn);
   return chip;
 }
 
 function addFeatureManual() {
-  const input = document.getElementById('featureAddInput'); if (!input) return;
-  const text  = input.value.trim(); if (!text) return;
-  const area  = document.getElementById('featuresArea'); if (area) area.appendChild(createChip(text));
+  var input = document.getElementById('featureAddInput'); if (!input) return;
+  var text  = input.value.trim(); if (!text) return;
+  var area  = document.getElementById('featuresArea'); if (area) area.appendChild(createChip(text));
   input.value = '';
 }
 
 function addHashtagManual() {
-  const input = document.getElementById('hashtagAddInput'); if (!input) return;
-  let text    = input.value.trim(); if (!text) return;
+  var input = document.getElementById('hashtagAddInput'); if (!input) return;
+  var text  = input.value.trim(); if (!text) return;
   if (!text.startsWith('#')) text = '#' + text;
-  const area  = document.getElementById('hashtagsArea'); if (area) area.appendChild(createChip(text));
+  var area  = document.getElementById('hashtagsArea'); if (area) area.appendChild(createChip(text));
   input.value = '';
 }
 
 function getChipTexts(areaId) {
-  const area = document.getElementById(areaId); if (!area) return [];
-  const texts = [];
-  area.querySelectorAll('.chip span:first-child').forEach(function(span) { const t = span.textContent.trim(); if (t) texts.push(t); });
+  var area = document.getElementById(areaId); if (!area) return [];
+  var texts = [];
+  area.querySelectorAll('.chip span:first-child').forEach(function(span) { var t = span.textContent.trim(); if (t) texts.push(t); });
   return texts;
 }
 
 /* 投稿生成 */
 function generateAllPosts() {
   if (imageState.selectedImages.length === 0) { alert('画像が選択されていません。STEP2に戻って画像を選んでください。'); return; }
-  const features = getChipTexts('featuresArea');
-  const hashtags = getChipTexts('hashtagsArea');
+  var features = getChipTexts('featuresArea');
+  var hashtags = getChipTexts('hashtagsArea');
   if (features.length === 0) { alert('特徴を最低1つ選択してください（STEP3）。'); return; }
-  const loading = document.getElementById('generateLoading');
+  var loading = document.getElementById('generateLoading');
   if (loading) loading.classList.remove('hidden');
-  const aiStaff   = getSelectedAiStaff();
-  const aiStaffId = (aiStaff && aiStaff.id !== 'standard') ? aiStaff.id : null;
-  const data = {
+  var aiStaff   = getSelectedAiStaff();
+  var aiStaffId = (aiStaff && aiStaff.id !== 'standard') ? aiStaff.id : null;
+  var data = {
     store: document.getElementById('store').value,
     category: document.getElementById('category').value,
     aiStaffId: aiStaffId,
@@ -882,12 +868,12 @@ function generateAllPosts() {
 }
 
 function parseAndDisplayPosts(rawText) {
-  const igMatch     = rawText.match(/===INSTAGRAM===([\s\S]*?)(?====HOTPEPPER===|===GOOGLE===|$)/);
-  const hpbMatch    = rawText.match(/===HOTPEPPER===([\s\S]*?)(?====INSTAGRAM===|===GOOGLE===|$)/);
-  const googleMatch = rawText.match(/===GOOGLE===([\s\S]*?)(?====INSTAGRAM===|===HOTPEPPER===|$)/);
-  const igEl     = document.getElementById('instagramResult');
-  const hpbEl    = document.getElementById('hotpepperResult');
-  const googleEl = document.getElementById('googleResult');
+  var igMatch     = rawText.match(/===INSTAGRAM===([\s\S]*?)(?====HOTPEPPER===|===GOOGLE===|$)/);
+  var hpbMatch    = rawText.match(/===HOTPEPPER===([\s\S]*?)(?====INSTAGRAM===|===GOOGLE===|$)/);
+  var googleMatch = rawText.match(/===GOOGLE===([\s\S]*?)(?====INSTAGRAM===|===HOTPEPPER===|$)/);
+  var igEl     = document.getElementById('instagramResult');
+  var hpbEl    = document.getElementById('hotpepperResult');
+  var googleEl = document.getElementById('googleResult');
   if (igEl)     igEl.value     = igMatch     ? igMatch[1].trim()     : '';
   if (hpbEl)    hpbEl.value    = hpbMatch    ? hpbMatch[1].trim()    : '';
   if (googleEl) googleEl.value = googleMatch ? googleMatch[1].trim() : '';
@@ -897,8 +883,8 @@ function generateAnotherPattern() { generateAllPosts(); }
 
 /* コピー機能 */
 function copyText(elementId) {
-  const el = document.getElementById(elementId); if (!el) return;
-  const text = el.value || el.textContent || '';
+  var el = document.getElementById(elementId); if (!el) return;
+  var text = el.value || el.textContent || '';
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(function() { showCopyFeedback(elementId); }).catch(function() { fallbackCopy(el, elementId); });
   } else { fallbackCopy(el, elementId); }
@@ -910,9 +896,9 @@ function fallbackCopy(el, elementId) {
 }
 
 function showCopyFeedback(elementId) {
-  const btns = document.querySelectorAll('[onclick="copyText(\'' + elementId + '\')"]');
+  var btns = document.querySelectorAll('[onclick="copyText(\'' + elementId + '\')"]');
   btns.forEach(function(btn) {
-    const original = btn.textContent; btn.textContent = '✓ コピーしました！'; btn.classList.add('btn-success');
+    var original = btn.textContent; btn.textContent = '✓ コピーしました！'; btn.classList.add('btn-success');
     setTimeout(function() { btn.textContent = original; btn.classList.remove('btn-success'); }, 2000);
   });
 }
