@@ -770,16 +770,39 @@ function runAnalysis() {
   if (loading) loading.classList.remove('hidden');
   if (rb) rb.textContent = '';
   const images = imageState.selectedImages.map(function(img) { return { mimeType: img.mimeType, base64: img.base64 }; });
-  gasRequest('analyzeImages', { data: JSON.stringify({ images: images }) })
-    .then(function(result) {
-      if (loading) loading.classList.add('hidden');
-      imageState.analysisResult = result;
-      renderAnalysisResult(result);
-    })
-    .catch(function(err) {
-      if (loading) loading.classList.add('hidden');
-      if (rb) rb.textContent = '解析エラー：' + (err.message || '不明なエラー');
-    });
+  function gasRequest(action, params) {
+  return new Promise(function(resolve, reject) {
+    const HEAVY_ACTIONS = ['analyzeImages', 'generatePosts'];
+
+    if (HEAVY_ACTIONS.indexOf(action) !== -1) {
+      const bodyObj = Object.assign({ action: action }, params);
+      fetch('/api/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyObj)
+      })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data && data.error) { reject(new Error(data.error)); }
+          else { resolve(data); }
+        })
+        .catch(function(err) { reject(err); });
+    } else {
+      const query = Object.assign({ action: action }, params);
+      const queryStr = Object.keys(query).map(function(k) {
+        const v = typeof query[k] === 'object' ? JSON.stringify(query[k]) : String(query[k]);
+        return encodeURIComponent(k) + '=' + encodeURIComponent(v);
+      }).join('&');
+
+      fetch('/api/proxy?' + queryStr)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data && data.error) { reject(new Error(data.error)); }
+          else { resolve(data); }
+        })
+        .catch(function(err) { reject(err); });
+    }
+  });
 }
 
 function renderAnalysisResult(result) {
