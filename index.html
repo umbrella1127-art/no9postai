@@ -106,7 +106,10 @@
     <h2>スタッフログイン</h2>
     <p class="hint">スタッフコードを入力してください。</p>
     <input type="password" id="staffCode" placeholder="スタッフコード" inputmode="numeric">
-    <button class="main-btn" onclick="handleStaffLogin()">ログイン</button>
+<label style="flex-direction:row;align-items:center;gap:8px;display:flex;margin-top:12px;font-size:13px;color:#7a4a9a;font-weight:normal;">
+  <input type="checkbox" id="saveCode" style="width:auto;padding:0;border-radius:4px;"> このコードを保存する
+</label>
+<button class="main-btn" onclick="handleStaffLogin()">ログイン</button>
     <p id="loginMessage" class="message"></p>
   </section>
 
@@ -415,6 +418,11 @@ function handleStaffLogin() {
       if (!res.success) { message.textContent = res.message; return; }
       currentStaff     = res.staff;
       currentStaffCode = res.staffCode;
+      if (document.getElementById('saveCode').checked) {
+  localStorage.setItem('no9_saved_code', code);
+} else {
+  localStorage.removeItem('no9_saved_code');
+}
       document.getElementById('loginSection').classList.add('hidden');
       document.getElementById('mainApp').classList.remove('hidden');
       document.getElementById('staffName').textContent = currentStaff.name + ' でログイン中';
