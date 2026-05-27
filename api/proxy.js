@@ -179,4 +179,35 @@ ${storeSettings.cta}` : ''}
 
       const parts = [{ text: prompt }];
       images.forEach(function(img) {
-        parts.push({ inlineData: { mime
+        parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+      });
+      const payload    = { contents: [{ role: 'user', parts: parts }], generationConfig: { temperature: 0.85, maxOutputTokens: 4096 } };
+      const resultText = await httpsPostJson(GEMINI_URL, payload);
+      const json       = JSON.parse(resultText);
+      if (!json.candidates || !json.candidates.length) {
+        res.status(500).json({ error: 'Gemini APIエラー: ' + resultText });
+        return;
+      }
+      const result = json.candidates[0].content.parts[0].text.replace(/\*\*/g, '').replace(/###/g, '').trim();
+      res.status(200).json(result);
+      return;
+    }
+
+    // その他はGASへGETで転送
+    const queryStr = Object.keys(params).map(function(k) {
+      const v = typeof params[k] === 'object' ? JSON.stringify(params[k]) : String(params[k]);
+      return encodeURIComponent(k) + '=' + encodeURIComponent(v);
+    }).join('&');
+    const resultText = await httpsGet(GAS_URL + (queryStr ? '?' + queryStr : ''));
+
+    if (!resultText || resultText.trim().startsWith('<')) {
+      res.status(500).json({ error: 'GASの設定を確認してください' });
+      return;
+    }
+
+    res.status(200).json(JSON.parse(resultText));
+
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+}
