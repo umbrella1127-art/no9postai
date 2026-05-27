@@ -242,6 +242,8 @@
         <button class="open-btn" onclick="openUrl('https://business.google.com/')">🔗 GBPを開く</button>
       </div>
       <button class="sub-btn" onclick="goStep(4)">← 戻る</button>
+      <button class="main-btn" onclick="resetAndGoTop()" style="background:linear-gradient(135deg,#9b72cf,#6a4a9a);margin-top:10px;">✨ 新規投稿する</button>
+      <button class="sub-btn" onclick="goStep(1)" style="margin-top:10px;">🏠 TOPに戻る</button>
     </section>
   </main>
 </div>
@@ -916,6 +918,21 @@ function parseAndDisplayPosts(rawText) {
 }
 
 function generateAnotherPattern() { generateAllPosts(); }
+
+function resetAndGoTop() {
+  imageState.selectedImages = [];
+  imageState.analysisResult = null;
+  var previewArea = document.getElementById('previewArea');
+  if (previewArea) previewArea.innerHTML = '';
+  var imageInput = document.getElementById('imageInput');
+  if (imageInput) imageInput.value = '';
+  document.getElementById('additionalText').value = '';
+  document.getElementById('instagramResult').value = '';
+  document.getElementById('hotpepperResult').value = '';
+  document.getElementById('googleResult').value = '';
+  resetAnalysisUI();
+  goStep(1);
+}
 
 /* コピー機能 */
 function copyText(elementId) {
