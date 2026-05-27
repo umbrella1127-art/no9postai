@@ -362,7 +362,7 @@ function gasRequest(action, params) {
       return encodeURIComponent(k) + '=' + encodeURIComponent(v);
     }).join('&');
 
-    fetch('/.netlify/functions/proxy?' + queryStr)
+    fetch('/api/proxy?' + queryStr)
       .then(function(res) { return res.json(); })
       .then(function(data) {
         if (data && data.error) { reject(new Error(data.error)); }
