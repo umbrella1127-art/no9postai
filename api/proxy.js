@@ -202,9 +202,11 @@ ${storeSettings.cta}` : ''}
         return;
       }
       const result = json.candidates[0].content.parts[0].text.replace(/\*\*/g, '').replace(/###/g, '').trim();
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-res.status(200).end(JSON.stringify({ text: result }));
-      return;
+      const responseBody = Buffer.from(JSON.stringify({ text: result }), 'utf8');
+res.setHeader('Content-Type', 'application/json; charset=utf-8');
+res.setHeader('Content-Length', responseBody.length);
+res.status(200).end(responseBody);
+return;
     }
 
     // その他はGASへGETで転送
