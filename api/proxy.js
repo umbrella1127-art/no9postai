@@ -62,6 +62,13 @@ export default async function handler(req, res) {
     if (action === 'analyzeImages') {
       const data   = typeof params.data === 'string' ? JSON.parse(params.data) : params.data;
       const images = data.images || [];
+      // 画像を圧縮（base64の先頭500000文字に制限）
+const compressedImages = images.map(function(img) {
+  return {
+    mimeType: img.mimeType,
+    base64: img.base64.substring(0, 500000)
+  };
+});
       const prompt = 'あなたは美容業界専門AIです。画像を解析し、以下をJSON形式で返してください。{"reaction":"","features":[],"hashtags":[],"recommendedTastes":[]}ルール：reaction：スタッフが嬉しくなる自然な褒めコメント。features：画像特徴候補。hashtags：おすすめハッシュタグ。recommendedTastes：おすすめ投稿テイスト。投稿テイスト候補：上品・共感・かわいい・強セールス・トレンド。JSONのみ返してください。';
       const parts  = [{ text: prompt }];
       images.forEach(function(img) {
