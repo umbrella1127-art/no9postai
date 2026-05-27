@@ -106,10 +106,10 @@
     <h2>スタッフログイン</h2>
     <p class="hint">スタッフコードを入力してください。</p>
     <input type="password" id="staffCode" placeholder="スタッフコード" inputmode="numeric">
-<label style="flex-direction:row;align-items:center;gap:8px;display:flex;margin-top:12px;font-size:13px;color:#7a4a9a;font-weight:normal;">
-  <input type="checkbox" id="saveCode" style="width:auto;padding:0;border-radius:4px;"> このコードを保存する
-</label>
-<button class="main-btn" onclick="handleStaffLogin()">ログイン</button>
+    <label style="flex-direction:row;align-items:center;gap:8px;display:flex;margin-top:12px;font-size:13px;color:#7a4a9a;font-weight:normal;">
+      <input type="checkbox" id="saveCode" style="width:auto;padding:0;border-radius:4px;"> このコードを保存する
+    </label>
+    <button class="main-btn" onclick="handleStaffLogin()">ログイン</button>
     <p id="loginMessage" class="message"></p>
   </section>
 
@@ -392,7 +392,6 @@ var currentStaffCode   = '';
 var currentStep        = 1;
 var currentAiStaffList = [];
 var imageState = { selectedImages: [], analysisResult: null };
-var postState  = { instagram: '', hotpepper: '', google: '' };
 
 var PERSONA_AVATARS = {
   '標準':'🤖','上品':'🌸','親しみ':'😊','高級感':'💎','共感':'💝',
@@ -416,13 +415,13 @@ function handleStaffLogin() {
   gasRequest('loginStaff', { code: code })
     .then(function(res) {
       if (!res.success) { message.textContent = res.message; return; }
+      if (document.getElementById('saveCode').checked) {
+        localStorage.setItem('no9_saved_code', code);
+      } else {
+        localStorage.removeItem('no9_saved_code');
+      }
       currentStaff     = res.staff;
       currentStaffCode = res.staffCode;
-      if (document.getElementById('saveCode').checked) {
-  localStorage.setItem('no9_saved_code', code);
-} else {
-  localStorage.removeItem('no9_saved_code');
-}
       document.getElementById('loginSection').classList.add('hidden');
       document.getElementById('mainApp').classList.remove('hidden');
       document.getElementById('staffName').textContent = currentStaff.name + ' でログイン中';
@@ -722,11 +721,34 @@ function deleteSelectedAiStaff() {
     .catch(function(err) { alert('削除エラー：' + err.message); });
 }
 
-/* 画像アップロード */
+/* 画像アップロード・圧縮 */
 function setupImageUpload() {
   var input = document.getElementById('imageInput');
   if (!input) return;
   input.onchange = function(e) { handleImages(e.target.files); };
+}
+
+function compressImage(file, callback) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var maxSize = 1024;
+      var w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else { w = Math.round(w * maxSize / h); h = maxSize; }
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      var base64  = dataUrl.split(',')[1];
+      callback({ mimeType: 'image/jpeg', base64: base64, dataUrl: dataUrl });
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 function handleImages(files) {
@@ -736,37 +758,19 @@ function handleImages(files) {
   var previewArea = document.getElementById('previewArea');
   if (previewArea) previewArea.innerHTML = '';
   resetAnalysisUI();
-  var loaded = 0;
+
+  var total = fileArray.length;
+  var done  = 0;
+
   fileArray.forEach(function(file, index) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var dataUrl  = e.target.result;
-      var parts    = dataUrl.split(',');
-      var mimeType = parts[0].replace('data:', '').replace(';base64', '');
-      var base64   = parts[1];
-      // 画像を圧縮してからbase64に変換
-const img = new Image();
-img.onload = function() {
-  const canvas = document.createElement('canvas');
-  const maxSize = 1024;
-  let w = img.width, h = img.height;
-  if (w > maxSize || h > maxSize) {
-    if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
-    else { w = Math.round(w * maxSize / h); h = maxSize; }
-  }
-  canvas.width = w; canvas.height = h;
-  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-  const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-  const compressedParts = compressedDataUrl.split(',');
-  const compressedMime = 'image/jpeg';
-  const compressedBase64 = compressedParts[1];
-  };
-img.src = dataUrl;
-      addImagePreview(dataUrl, index); loaded++;
-      if (loaded === fileArray.length) imageState.selectedImages = imageState.selectedImages.filter(Boolean);
-    };
-    reader.onerror = function() { alert('読み込み失敗：' + file.name); };
-    reader.readAsDataURL(file);
+    compressImage(file, function(compressed) {
+      imageState.selectedImages[index] = compressed;
+      addImagePreview(compressed.dataUrl, index);
+      done++;
+      if (done === total) {
+        imageState.selectedImages = imageState.selectedImages.filter(Boolean);
+      }
+    });
   });
 }
 
@@ -933,7 +937,8 @@ function openUrl(url) { window.open(url, '_blank'); }
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
-// 保存済みコードを自動入力
+
+/* 保存済みコードを自動入力 */
 (function() {
   var saved = localStorage.getItem('no9_saved_code');
   if (saved) {
