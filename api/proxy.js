@@ -202,7 +202,7 @@ ${storeSettings.cta}` : ''}
         return;
       }
       const result = json.candidates[0].content.parts[0].text.replace(/\*\*/g, '').replace(/###/g, '').trim();
-      res.status(200).json(result);
+      res.status(200).json({ text: result });
       return;
     }
 
