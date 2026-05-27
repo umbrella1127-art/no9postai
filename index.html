@@ -923,7 +923,14 @@ function parseAndDisplayPosts(rawText) {
   if (googleEl) googleEl.value = googleMatch ? googleMatch[1].trim() : '';
 }
 
-function generateAnotherPattern() { generateAllPosts(); }
+function generateAnotherPattern() {
+  if (imageState.selectedImages.length === 0) {
+    alert('画像データがありません。STEP2に戻って画像を選び直してください。');
+    goStep(2);
+    return;
+  }
+  generateAllPosts();
+}
 
 function resetAndGoTop() {
   imageState.selectedImages = [];
