@@ -897,8 +897,13 @@ function generateAllPosts() {
   gasRequest('generatePosts', { data: JSON.stringify(data) })
     .then(function(result) {
       if (loading) loading.classList.add('hidden');
-      var text = typeof result === 'string' ? result : (result.text || '');
-parseAndDisplayPosts(text); goStep(5);
+      var text = typeof result === 'string' ? result : (result.text || JSON.stringify(result));
+if (text && text.indexOf('===INSTAGRAM===') !== -1) {
+  parseAndDisplayPosts(text); goStep(5);
+} else {
+  alert('生成エラー：投稿文の形式が正しくありません。もう一度試してください。');
+  if (loading) loading.classList.add('hidden');
+};
     })
     .catch(function(err) {
       if (loading) loading.classList.add('hidden');
