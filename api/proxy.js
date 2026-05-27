@@ -8,24 +8,17 @@ export default async function handler(req, res) {
     return;
   }
 
-  // POSTの場合はbodyからparamsを取得
-  const params = req.method === 'POST'
-    ? req.body || {}
-    : req.query || {};
-  }
-
   const https = await import('https');
-
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbz2POEJjfOKuT57CHInwN8ZTlyiqbB4JmOt83B4qx7DV_a2CdoQQJQiSKdoOE8atceT/exec';
 
-  function httpsGet(url, redirectCount) {
-    redirectCount = redirectCount || 0;
-    if (redirectCount > 10) return Promise.reject(new Error('リダイレクト上限'));
+  function httpsGet(url, count) {
+    count = count || 0;
+    if (count > 10) return Promise.reject(new Error('リダイレクト上限'));
     return new Promise(function(resolve, reject) {
       https.default.get(url, function(response) {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
           response.resume();
-          resolve(httpsGet(response.headers.location, redirectCount + 1));
+          resolve(httpsGet(response.headers.location, count + 1));
           return;
         }
         let data = '';
@@ -35,24 +28,24 @@ export default async function handler(req, res) {
     });
   }
 
-  function httpsPost(url, bodyStr, redirectCount) {
-    redirectCount = redirectCount || 0;
-    if (redirectCount > 10) return Promise.reject(new Error('リダイレクト上限'));
+  function httpsPost(url, bodyStr, count) {
+    count = count || 0;
+    if (count > 10) return Promise.reject(new Error('リダイレクト上限'));
     return new Promise(function(resolve, reject) {
       const parsed = new URL(url);
       const options = {
         hostname: parsed.hostname,
-        path:     parsed.pathname + parsed.search,
-        method:   'POST',
-        headers:  {
-          'Content-Type':   'application/json',
+        path: parsed.pathname + parsed.search,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(bodyStr)
         }
       };
       const req2 = https.default.request(options, function(response) {
         if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
           response.resume();
-          resolve(httpsPost(response.headers.location, bodyStr, redirectCount + 1));
+          resolve(httpsPost(response.headers.location, bodyStr, count + 1));
           return;
         }
         let data = '';
@@ -66,19 +59,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const HEAVY_ACTIONS = ['analyzeImages', 'generatePosts'];
-    const params = req.query || {};
+    const params = req.method === 'POST' ? (req.body || {}) : (req.query || {});
     const action = params.action || '';
+    const HEAVY  = ['analyzeImages', 'generatePosts'];
     let resultText;
 
-    if (HEAVY_ACTIONS.indexOf(action) !== -1) {
-      const bodyObj = { action: action };
-      if (params.data) {
-        try { bodyObj.data = JSON.parse(params.data); }
-        catch(e) { bodyObj.data = params.data; }
-      }
-      const bodyStr = JSON.stringify(bodyObj);
-      resultText = await httpsPost(GAS_URL, bodyStr);
+    if (req.method === 'POST' && HEAVY.indexOf(action) !== -1) {
+      resultText = await httpsPost(GAS_URL, JSON.stringify(params));
+    } else if (req.method === 'POST') {
+      resultText = await httpsPost(GAS_URL, JSON.stringify(params));
     } else {
       const queryStr = Object.keys(params).map(function(k) {
         return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
